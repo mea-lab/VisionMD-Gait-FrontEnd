@@ -16,6 +16,7 @@ const VideoDrawer = ({
   const canvasRef = useRef(null);
   const currentFrame = useRef(-1);
   const lastDrawnFrame = useRef(-1);
+  const landmark_colors = taskBoxes[selectedTask]?.data?.landmark_colors
 
   const getFrameNumber = useCallback(
     (timestamp) => Math.round(timestamp * fps),
@@ -95,39 +96,48 @@ const VideoDrawer = ({
   }, [boundingBoxes, persons]);
 
   const drawLandMarks = useCallback(() => {
-      if (!taskBoxes.length || selectedTask == null) return;
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-      const ctx = canvas.getContext('2d');
+    if (!taskBoxes.length || selectedTask == null) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
 
-      const currentTask = taskBoxes[selectedTask];
-      const offset = Math.floor(currentTask.start * fps);
-      const frameIndex = currentFrame.current - offset;
-      const landMark = landMarks && landMarks[frameIndex];
-      if (!landMark) return;
+    const currentTask = taskBoxes[selectedTask];
+    // compute the frame‐index relative to the start of this task
+    const startFrame = Math.floor(currentTask.start * fps);
+    const frameIndex = currentFrame.current - startFrame;
+    if (
+      frameIndex < 0 ||
+      !landMarks ||
+      frameIndex >= landMarks.length
+    ) return;
 
-      ctx.fillStyle = 'red';
-      if (Array.isArray(landMark) && landMark.length >= 2) {
-        if (Array.isArray(landMark[0])) {
-          // Multiple landmark points
-          landMark.forEach(([lx, ly]) => {
-            ctx.beginPath();
-            ctx.arc(lx + currentTask.x - currentTask.width * 0.125, ly + currentTask.y - currentTask.height * 0.125, 12.5, 0, Math.PI * 2);
-            ctx.fill();
-          });
-        } else {
-          // Single landmark point
-          ctx.fillRect(
-            landMark[0] + currentTask.x - 15,
-            landMark[1] + currentTask.y - 15,
-            30,
-            30
-          );
-        }
+    const joints2D = landMarks[frameIndex];
+    const colors3D = landmark_colors;
+
+    // pre‐compute the crop offset
+    const offsetX = currentTask.x - currentTask.width * 0.125;
+    const offsetY = currentTask.y - currentTask.height * 0.125;
+
+    joints2D.forEach((pt, j) => {
+      if (!pt || pt.length < 2) return;
+      const [lx, ly] = pt;
+      // pick your per‐joint color or default to red
+      let fill = 'red';
+      if (
+        Array.isArray(colors3D) &&
+        colors3D[frameIndex] &&
+        Array.isArray(colors3D[frameIndex][j])
+      ) {
+        const [r, g, b] = colors3D[frameIndex][j];
+        fill = `rgb(${r}, ${g}, ${b})`;
       }
-    },
-    [taskBoxes, selectedTask, fps, landMarks]
-  );
+      ctx.fillStyle = fill;
+      ctx.beginPath();
+      ctx.arc(lx + offsetX, ly + offsetY, 12.5, 0, 2 * Math.PI);
+      ctx.fill();
+    });
+  }, [taskBoxes, selectedTask, fps, landMarks, landmark_colors]);
+
 
   // Modified drawFrame: we only draw bounding boxes when not in a taskBox time interval.
   const drawFrame = useCallback((currentTime) => {

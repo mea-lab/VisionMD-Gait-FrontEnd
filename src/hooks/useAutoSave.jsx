@@ -1,67 +1,75 @@
-// src/hooks/useAutoSave.js
-import { useCallback, useEffect, useRef } from 'react';
-import { useLocation } from 'react-router-dom';
-import { useDebouncedCallback } from 'use-debounce';
+import { useCallback, useEffect, useRef } from "react";
+import { useLocation } from "react-router-dom";
+import { useDebouncedCallback } from "use-debounce";
 
 const API_URL = import.meta.env.VITE_API_BASE_URL;
 const DEBOUNCE_MS = 500;
 
-// Create a stable JSON string so object‑key order does not affect equality checks
 const serialize = (value) => {
-  if (value === undefined || value === null) return "";
-  if (typeof value === "object" && !Array.isArray(value)) {
-    const sorted = Object.keys(value)
-      .sort()
-      .reduce((acc, k) => {
-        acc[k] = value[k];
-        return acc;
-      }, {});
-    return JSON.stringify(sorted);
-  }
-  return JSON.stringify(value);
+  const stable = (v) =>
+    v && typeof v === "object"
+      ? Array.isArray(v)
+        ? v.map(stable)
+        : Object.keys(v)
+            .sort()
+            .reduce((acc, k) => {
+              acc[k] = stable(v[k]);
+              return acc;
+            }, {})
+      : v;
+  return JSON.stringify(stable(value));
 };
 
-// Hook to autosave data when route changes (SPA navigation) or the window is about to unload
 export function useAutoSave(
   videoId,
   persons,
   boundingBoxes,
   tasks,
-  taskBoxes,
+  taskBoxes
 ) {
-  const lastSavedRef = useRef({});
+  const location = useLocation();          // ← you were missing this line
+  const lastSavedRef   = useRef({});
+  const latestSlicesRef = useRef({});
 
-  // Whenever we switch to a new video, clear the snapshot cache so everything is saved once
+  /* keep a ref in sync with whatever the props are right now */
+  useEffect(() => {
+    latestSlicesRef.current = { persons, boundingBoxes, taskBoxes, tasks };
+  });
+
+  /* reset snapshot cache when video changes */
   useEffect(() => {
     lastSavedRef.current = {};
   }, [videoId]);
 
-  // Save a single slice of data — but ONLY if it changed since the last successful save
-  const saveSlice = useCallback(
-    async (key, value) => {
-      if (!videoId) return;
+  /* stable saveSlice that *reads* from latestSlicesRef */
+  const saveSlice = useCallback(async (key, value) => {
+    if (!videoId) return;
 
-      const snapshot = serialize(value);
-      if (snapshot === lastSavedRef.current[key]) return; // nothing changed
+    const snapshot = serialize(value);
+    if (snapshot === lastSavedRef.current[key]) return; // nothing changed
+    lastSavedRef.current[key] = snapshot;
 
-      console.log(`[Autosave] Saving \"${key}\" …`);
-      try {
-        await fetch(`${API_URL}/update_video_data/?id=${videoId}&file_name=${key}.json`, {
+    console.log(`[Autosave] Saving "${key}" …`);
+    try {
+      await fetch(
+        `${API_URL}/update_video_data/?id=${videoId}&file_name=${key}.json`,
+        {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: snapshot,
-        });
-        // Update the local snapshot only after the request succeeds
-        lastSavedRef.current[key] = snapshot;
-      } catch (err) {
-        console.error("[Autosave]", err);
-      }
-    },
-    [videoId],
-  );
+        }
+      );
+      lastSavedRef.current[key] = snapshot;
+    } catch (err) {
+      console.error("[Autosave]", err);
+    }
+  }, [videoId]);
 
-  // Flush all non‑empty slices of data
+  /*  stable flush that pulls the CURRENT slices from the ref */
   const flush = useCallback(() => {
+    const { persons, boundingBoxes, taskBoxes, tasks } =
+      latestSlicesRef.current;
+
     const slices = { persons, boundingBoxes, taskBoxes, tasks };
 
     Object.entries(slices).forEach(([key, value]) => {
@@ -70,23 +78,17 @@ export function useAutoSave(
         : value && Object.keys(value).length;
       if (nonEmpty) saveSlice(key, value);
     });
-  }, [persons, boundingBoxes, taskBoxes, tasks, saveSlice]);
+  }, [saveSlice]);
 
   const debouncedFlush = useDebouncedCallback(flush, DEBOUNCE_MS);
 
-  // Fire on route change (SPA)
-  const location = useLocation();
-  const firstNav = useRef(true);
+  /*   run ONLY when the route changes */
   useEffect(() => {
-    if (firstNav.current) {
-      firstNav.current = false;
-      return;
-    }
     debouncedFlush();
     return debouncedFlush.cancel;
-  }, [location.pathname, debouncedFlush]);
+  }, [location.pathname, debouncedFlush, serialize(tasks.map(t => t.data))]);   // ← nothing else here
 
-  // Fire on hard reload or close
+  /*  also run on hard reload / tab close */
   useEffect(() => {
     const handler = () => flush();
     window.addEventListener("beforeunload", handler);

@@ -119,7 +119,8 @@ export default function JSONUploadDialog({
           throw new Error('404 Error: API route for task is not found!');
         }
         setServerProcessing(false);
-        throw new Error(`Server responded with ${response.status} error`);
+        const errorText = await response.text();
+        throw new Error(`Server responded with ${response.status} error:\n ${errorText}`);
       }
 
     } catch (error) {

@@ -101,7 +101,7 @@ const InteractiveOverlays = ({
         video.cancelVideoFrameCallback(frameCallbackId);
       }
     };
-  }, [videoRef, fps, isPlaying]);
+  }, [videoRef, fps, isPlaying, selectedTask]);
 
   const getSVGPoint = (evt) => {
     const svg = svgRef.current;
@@ -359,22 +359,38 @@ const InteractiveOverlays = ({
         </g>
       )}
 
-      {/* Render interactive red landmark circles only when the video is paused */}
+
+      {/* Render interactive landmarks when paused */}
       {(!isPlaying && landMarkIndex != null && tasks?.[selectedTask]?.data?.landMarks?.[landMarkIndex]) && (
         <g className="landmarks-group">
-          {tasks[selectedTask].data.landMarks[landMarkIndex].map((point, idx) => (
-            <circle
-              key={`landmark-${idx}`}
-              cx={point[0] + taskBoxes[selectedTask].x - taskBoxes[selectedTask].width * 0.125}
-              cy={point[1] + taskBoxes[selectedTask].y - taskBoxes[selectedTask].height * 0.125}
-              r={12.5}
-              fill="red"
-              stroke="white"
-              strokeWidth="2"
-              onPointerDown={(e) => handleLandmarkDragStart(e, idx)}
-              style={{ cursor: 'move' }}
-            />
-          ))}
+          {(() => {
+            const colors3D = tasks[selectedTask].data.landmark_colors;
+            return tasks[selectedTask].data.landMarks[landMarkIndex].map((point, idx) => {
+              const [px, py] = point;
+              let fillColor = 'red';
+              if (
+                Array.isArray(colors3D) &&
+                colors3D[landMarkIndex] &&
+                Array.isArray(colors3D[landMarkIndex][idx])
+              ) {
+                const [r, g, b] = colors3D[landMarkIndex][idx];
+                fillColor = `rgb(${r}, ${g}, ${b})`;
+              }
+              return (
+                <circle
+                  key={`landmark-${idx}`}
+                  cx={px + taskBoxes[selectedTask].x - taskBoxes[selectedTask].width * 0.125}
+                  cy={py + taskBoxes[selectedTask].y - taskBoxes[selectedTask].height * 0.125}
+                  r={12.5}
+                  fill={fillColor}
+                  stroke="white"
+                  strokeWidth="2"
+                  onPointerDown={(e) => handleLandmarkDragStart(e, idx)}
+                  style={{ cursor: 'move' }}
+                />
+              );
+            });
+          })()}
         </g>
       )}
     </svg>

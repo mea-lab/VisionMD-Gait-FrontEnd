@@ -2,6 +2,9 @@
 import React, { createContext, useState, useEffect, useRef } from 'react';
 export const VideoContext = createContext();
 import { useAutoSave } from '@/hooks/useAutoSave';
+import { isEqual } from "lodash";
+
+
 const API_URL = import.meta.env.VITE_API_BASE_URL;
 const BASE_URL = import.meta.env.VITE_BASE_URL
 
@@ -59,16 +62,16 @@ export const VideoProvider = ({ children }) => {
                 setFPS(metadata.fps);
 
                 // Setting potential data that was stored previously (bounding boxes, tasks, landmarks, signals)
-                if(data.persons) {
-                    setPersons(data.persons)
+                if (data.persons) {
+                setPersons(prev => isEqual(prev, data.persons) ? prev : data.persons);
                 }
-                if(data.boundingBoxes) {
-                    setBoundingBoxes(data.boundingBoxes)
-                    setBoxesReady(true)
+                if (data.boundingBoxes) {
+                setBoundingBoxes(prev => isEqual(prev, data.boundingBoxes) ? prev : data.boundingBoxes);
+                setBoxesReady(true);
                 }
-                if(data.tasks) {
-                    setTasks(data.tasks)
-                    setTasksReady(true)
+                if (data.tasks) {
+                setTasks(prev => isEqual(prev, data.tasks) ? prev : data.tasks);
+                setTasksReady(true);
                 }
 
                 // For some reason, setting task boxes breaks the frontend and not setting it makes it work
@@ -88,15 +91,14 @@ export const VideoProvider = ({ children }) => {
         setVideoURL("");
         setFileName("");
         setFPS(null);
-
         setPersons([]);
         setBoundingBoxes([]);
         setTasks([]);
         setTaskBoxes([]);
-
         setVideoReady(false);
         setBoxesReady(false);
         setTasksReady(false);
+
         prepareVideoData(videoId);
 
         return () => {

@@ -5,7 +5,7 @@ import Button from '@mui/material/Button';
 
 const FeatureTable = ({ tasks, selectedTaskIndex, fileName }) => {
   const data = tasks[selectedTaskIndex].data;
-  data['fileName'] = fileName;
+  data['File name'] = fileName;
 
   const entries = Object.entries(data).filter(([, value]) =>
     typeof value === 'number' || typeof value === 'string'

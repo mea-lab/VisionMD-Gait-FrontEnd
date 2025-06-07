@@ -35,12 +35,11 @@ const Gait = ({
   const taskSelectionRef = useRef(null);
 
   const fl = useSyncExternalStore(subscribe, () =>
-    task.focal_length != null ? task.focal_length : globalFocalLength
+    globalFocalLength
   );
   const h = useSyncExternalStore(subscribe, () =>
-    task.height != null ? task.height : globalHeight
+    globalHeight
   );
-
 
   const handleTaskChange = selectedTask => {
     onFieldChange(selectedTask.value, 'name', task);
@@ -51,6 +50,28 @@ const Gait = ({
       taskSelectionRef.current.focus();
     }
   }, [taskSelectionRef])
+
+  useEffect(() => {
+    if (task.focal_length) {
+      setGlobalFocalLength(onFieldChange, task.focal_length, task)
+    }
+
+    if (task.height) {
+      setGlobalHeight(onFieldChange, task.height, task)
+    }
+  }, [])
+
+  useEffect(() => {
+  if (fl != null && fl !== task.focal_length) {
+    onFieldChange(fl, 'focal_length', task)
+  }
+}, [fl])
+
+useEffect(() => {
+  if (h != null && h !== task.height) {
+    onFieldChange(h, 'height', task)
+  }
+}, [h])
 
   return (
     <div

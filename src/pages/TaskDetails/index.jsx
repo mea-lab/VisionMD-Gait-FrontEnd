@@ -1,15 +1,22 @@
-import React, { useContext, useEffect, useRef, useState, Suspense } from 'react';
+import React, {
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  Suspense,
+} from 'react';
 import VideoPlayer from '../../components/VideoPlayer/VideoPlayer';
 import { VideoContext } from '../../contexts/VideoContext';
 import HeaderSection from './HeaderSection';
-import Button from '@mui/material/Button';
 import JSONUploadDialog from './JSONUploadDialog';
-import { RestartAlt, CloudDownload } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
+
+import RestartAltIcon from '@mui/icons-material/RestartAlt';
+import CloudDownloadIcon from '@mui/icons-material/CloudDownload';
+import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import { CircularProgress } from '@mui/material';
 
 const TaskDetails = () => {
-
   const {
     videoId,
     videoReady,
@@ -17,7 +24,6 @@ const TaskDetails = () => {
     videoData,
     setVideoData,
     videoURL,
-    setVideoURL,
     videoRef,
     fileName,
     boundingBoxes,
@@ -35,59 +41,57 @@ const TaskDetails = () => {
   const [selectedTask, setSelectedTask] = useState(0);
   const [TaskModule, setTaskModule] = useState(null);
 
+  /* ▼ dropdown state for “Download All” ▼ */
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
+  /* ▲-----------------------------------▲ */
+
   const navigate = useNavigate();
-  if(!videoId) {
-    navigate("/")
-  }
 
+  /* close the dropdown on outside-click */
+  useEffect(() => {
+    const handleClickOutside = e => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setDropdownOpen(false);
+      }
+    };
+    if (dropdownOpen) document.addEventListener('mousedown', handleClickOutside);
+    return () =>
+      document.removeEventListener('mousedown', handleClickOutside);
+  }, [dropdownOpen]);
 
+  /* load per-task module */
   useEffect(() => {
     if (!videoReady) return;
     if (!tasks || !tasks[selectedTask]) return;
+    if (!videoId) navigate('/');
 
     const task = tasks[selectedTask];
     const taskName = task.name;
-    const fileName = taskName
-      .toLowerCase()
-      .split(' ')
-      .join('_');
+    const fileNameSafe = taskName.toLowerCase().split(' ').join('_');
 
-    import(`./Tasks/${fileName}.jsx`)
+    import(`./Tasks/${fileNameSafe}.jsx`)
       .then(mod => {
-        setTaskModule(() => mod.default)
+        setTaskModule(() => mod.default);
       })
       .catch(err => {
-        console.error(`Couldn’t load task module ${taskName}:`, err)
-        setTaskModule(null)
-    })
-
-    videoRef.current.currentTime = task.start;
-    videoRef.current.ontimeupdate = event => {
-      if (event.target.currentTime >= task.end) {
-        videoRef.current.currentTime = task.start;
-      }
-      if (event.target.currentTime < task.start) {
-        videoRef.current.currentTime = task.start;
-      }
-    };
+        console.error(`Couldn’t load task module ${taskName}:`, err);
+        setTaskModule(null);
+      });
   }, [selectedTask, videoReady, videoRef]);
-
-
-
 
   const handleProcessing = (jsonFileUploaded, jsonContent) => {
     if (jsonFileUploaded && jsonContent) {
-      const safeFileName = fileName.replace(/\.[^/.]+$/, '');
       setTasks(prev => {
         const newTasks = [...prev];
-        newTasks[selectedTask] = { ...newTasks[selectedTask], data: { ...jsonContent, fileName: safeFileName } };
+        newTasks[selectedTask] = {
+          ...newTasks[selectedTask],
+          data: { ...jsonContent },
+        };
         return newTasks;
       });
     }
   };
-
-
-
 
   const resetTask = () => {
     setTasks(prev => {
@@ -96,8 +100,6 @@ const TaskDetails = () => {
       return newTasks;
     });
   };
-
-
 
   const autoAnalyzeTask = async taskIndex => {
     const videoURL = videoRef.current.src;
@@ -142,7 +144,10 @@ const TaskDetails = () => {
 
     setTasks(prev => {
       const next = [...prev];
-      next[taskIndex] = { ...next[taskIndex], data: { ...result, fileName: safeFileName } };
+      next[taskIndex] = {
+        ...next[taskIndex],
+        data: { ...result, fileName: safeFileName },
+      };
       return next;
     });
   };
@@ -161,27 +166,10 @@ const TaskDetails = () => {
     setAnalyzingAll(false);
   };
 
-
-
   const DownloadCurrentTask = () => {
     const currentTask = tasks[selectedTask];
     const fileData = currentTask.data;
-    const downloadContent = {
-      linePlot: fileData.linePlot,
-      velocityPlot: fileData.velocityPlot,
-      rawData: fileData.rawData,
-      peaks: fileData.peaks,
-      valleys: fileData.valleys,
-      valleys_start: fileData.valleys_start,
-      valleys_end: fileData.valleys_end,
-      radar: { ...fileData.radar },
-      radarTable: fileData.radarTable,
-      landMarks: fileData.landMarks,
-      allLandMarks: fileData.allLandMarks,
-      normalization_landmarks: fileData.normalizationLandMarks,
-      normalization_factor: fileData.normalizationFactor,
-    };
-    const jsonStr = JSON.stringify(downloadContent);
+    const jsonStr = JSON.stringify(fileData);
     const blob = new Blob([jsonStr], { type: 'application/json' });
     const href = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -193,25 +181,32 @@ const TaskDetails = () => {
     URL.revokeObjectURL(href);
   };
 
-
-
-  const commonButtonStyle = {
-    bgcolor: 'primary.main',
-    '&:hover': { bgcolor: 'primary.dark' },
-    textTransform: 'none',
-    fontWeight: 'bold',
-    px: 3,
-    py: 1,
+  const downloadAllTasks = () => {
+    tasks.forEach(task => {
+      if (!task?.data) return;
+      const jsonStr = JSON.stringify(task.data);
+      const blob = new Blob([jsonStr], { type: 'application/json' });
+      const href = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = href;
+      link.download = `${fileName.replace(/\.[^/.]+$/, '')}_${task.name}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(href);
+    });
   };
 
-  console.log("All tasks", tasks)
-
+  /* Tailwind button base */
+  const btn =
+    'bg-blue-500 hover:bg-blue-600 text-white font-bold px-3 py-1 ' +
+    'rounded-md inline-flex items-center gap-1 ' +
+    'disabled:opacity-50 disabled:cursor-not-allowed';
 
   return (
     <div className="flex flex-col h-screen">
       <div className="flex flex-1 overflow-hidden">
-        
-        {/* Start Video Player */}
+        {/* ─── Video Player ───────────────────────────── */}
         <div className="flex-1 min-w-[50%] bg-slate-900">
           <VideoPlayer
             videoURL={videoURL}
@@ -233,13 +228,9 @@ const TaskDetails = () => {
             setTasks={setTasks}
           />
         </div>
-        {/* End Video Player */}
 
-
-        {/* Start Task Details */}
+        {/* ─── Right-hand Pane ───────────────────────── */}
         <div className="flex-1 flex flex-col min-w-[50%] bg-slate-50 overflow-y-auto">
-
-          {/* Start Header */}
           <HeaderSection
             title="Task Details"
             isVideoReady={videoReady}
@@ -247,14 +238,12 @@ const TaskDetails = () => {
             fps={fps}
             boundingBoxes={boundingBoxes}
           />
-          {/* End Header */}
 
-
-          {/* Start Task Header */}
+          {/* ─── Toolbar ─────────────────────────────── */}
           <div className="flex items-center justify-center gap-2 mt-2 mb-4">
-            <div className="text-lg font-bold">Current task -</div>
+            <div className="text-lg font-bold">Current task&nbsp;-</div>
 
-            {/* Start Task Selector */}
+            {/* task selector */}
             <select
               className="text-lg border border-gray-300 rounded-md px-2 py-1"
               value={selectedTask}
@@ -266,53 +255,78 @@ const TaskDetails = () => {
                 </option>
               ))}
             </select>
-            {/* End Task Selector */}
-            
-            {/* Start Reset Button */}
-            <Button variant="contained" onClick={resetTask} startIcon={<RestartAlt />} sx={commonButtonStyle}>
-              Reset
-            </Button>
-            {/* End Reset Button */}
-            
-            {/* Start Download Button */}
-            <Button
-              variant="contained"
-              onClick={DownloadCurrentTask}
-              startIcon={<CloudDownload />}
-              sx={commonButtonStyle}
-              disabled={!tasks[selectedTask]?.data}
-            >
-              Download
-            </Button>
-            {/* End Download Button */}
 
-            {/*Start Analyze all button */}
-         
-            <Button
-              variant="contained"
+            {/* Reset */}
+            <button className={btn} onClick={resetTask}>
+              <RestartAltIcon fontSize="small" />
+              Reset
+            </button>
+
+            {/* ── Split Download button ── */}
+            <div className="relative inline-flex" ref={dropdownRef}>
+              {/* main download */}
+              <button
+                className={`${btn} rounded-r-none border-r border-blue-700`}
+                onClick={DownloadCurrentTask}
+                disabled={!tasks[selectedTask]?.data}
+              >
+                <CloudDownloadIcon fontSize="small" />
+                Download
+              </button>
+
+              {/* arrow trigger */}
+              <button
+                className={`${btn} rounded-l-none px-2`}
+                onClick={() => setDropdownOpen(prev => !prev)}
+                disabled={!tasks.some(t => t?.data)}
+              >
+                <ArrowDropDownIcon fontSize="small" />
+              </button>
+
+              {/* dropdown */}
+              {dropdownOpen && (
+                <div className="absolute right-0 top-full mt-1 w-40 bg-white border border-gray-200 rounded-md shadow-md z-20">
+                  <button
+                    className="w-full text-left px-4 py-2 hover:bg-gray-100 disabled:opacity-50"
+                    onClick={() => {
+                      downloadAllTasks();
+                      setDropdownOpen(false);
+                    }}
+                    disabled={!tasks.some(t => t?.data)}
+                  >
+                    Download All
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Analyze All */}
+            <button
+              className={btn}
               onClick={analyzeAllTasks}
-              sx={commonButtonStyle}
               disabled={analyzingAll || !tasks.some(t => t.data == null)}
             >
               Analyze All
-            </Button>
-          
-            {analyzingAll && <CircularProgress size={28} />}
-            {/*End Analyze all button */}
+            </button>
 
+            {analyzingAll && (
+              <CircularProgress
+                size={28}
+                sx={{ color: '#2563eb' /* blue-600 */ }}
+              />
+            )}
           </div>
-          {/* End Task Header */}
 
+          {/* ─── Body ────────────────────────────────── */}
           {!tasks[selectedTask]?.data ? (
             <div className="flex justify-center items-center h-full flex-col gap-4 w-full px-10 flex-1 py-4 overflow-y-scroll">
               <div>Analyze the task</div>
-              <Button
-                variant="contained"
+              <button
+                className={`${btn} text-base`}
                 onClick={() => setOpenJsonUpload(true)}
-                sx={{ ...commonButtonStyle, fontSize: '1rem' }}
               >
                 Analyze
-              </Button>
+              </button>
               <JSONUploadDialog
                 dialogOpen={openJsonUpload}
                 fps={fps}
@@ -342,8 +356,6 @@ const TaskDetails = () => {
             </>
           )}
         </div>
-        {/* End Task Details */}
-
       </div>
     </div>
   );

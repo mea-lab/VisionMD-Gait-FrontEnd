@@ -35,7 +35,8 @@ const TaskList = ({
 
   const onFieldChange = (newValue, fieldName, task) => {
     let newTask = { ...task };
-
+    if(newTask[fieldName] && newTask[fieldName] == newValue) return;
+    
     newTask[fieldName] =
       fieldName === 'start' || fieldName === 'end'
         ? Number(Number(newValue).toFixed(3))

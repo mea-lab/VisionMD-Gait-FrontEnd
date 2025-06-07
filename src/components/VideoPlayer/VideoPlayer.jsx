@@ -80,6 +80,29 @@ const VideoPlayer = ({
     }
   }, [zoomLevel, containerSize]);
 
+  // Keep playback clamped to the currently–selected task’s segment
+  useEffect(() => {
+    if (!videoRef.current || !tasks?.[selectedTask]) return;
+
+    const vid = videoRef.current;
+    const { start, end } = tasks[selectedTask];
+
+    // Jump to the beginning of the segment once
+    vid.currentTime = start;
+    setIsPlaying(!vid.paused);
+
+    const handleUpdate = () => {
+      if (vid.currentTime >= end - 0.05) {
+        vid.pause();                      
+        vid.currentTime = start;
+        vid.play().catch(() => {});
+      }
+    };
+
+    vid.addEventListener('timeupdate', handleUpdate);
+    return () => vid.removeEventListener('timeupdate', handleUpdate);
+  }, [selectedTask, tasks, videoRef]);
+
   const getTotalFrameCount = () => {
     if (videoRef.current && !isNaN(videoRef.current.duration)) {
       return Math.round(fps * videoRef.current.duration);
