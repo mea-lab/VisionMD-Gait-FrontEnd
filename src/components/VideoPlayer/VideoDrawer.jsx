@@ -6,6 +6,7 @@ const VideoDrawer = ({
   boundingBoxes,
   fps,
   persons,
+  tasks,
   taskBoxes,
   landMarks,
   selectedTask,
@@ -16,7 +17,7 @@ const VideoDrawer = ({
   const canvasRef = useRef(null);
   const currentFrame = useRef(-1);
   const lastDrawnFrame = useRef(-1);
-  const landmark_colors = taskBoxes[selectedTask]?.data?.landmark_colors
+  const landmark_colors = tasks[selectedTask]?.data?.landmark_colors
 
   const getFrameNumber = useCallback(
     (timestamp) => Math.round(timestamp * fps),
@@ -161,7 +162,7 @@ const VideoDrawer = ({
         drawLandMarks();
       }
     },
-    [getFrameNumber, clearCanvas, drawVideoFrame, drawBoundingBoxes, drawLandMarks, taskBoxes, screen, isPlaying]
+    [getFrameNumber, clearCanvas, drawVideoFrame, drawBoundingBoxes, drawLandMarks, landmark_colors, taskBoxes, screen, isPlaying]
   );
 
   // Set canvas dimensions and start the continuous render loop.
@@ -203,7 +204,7 @@ const VideoDrawer = ({
     if (videoRef?.current) {
       drawFrame(videoRef.current.currentTime);
     }
-  }, [persons, taskBoxes, landMarks, selectedTask, screen, drawFrame, videoRef, isPlaying]);
+  }, [persons, taskBoxes, landMarks, landmark_colors, selectedTask, screen, drawFrame, videoRef, isPlaying]);
   
   return (
     <canvas

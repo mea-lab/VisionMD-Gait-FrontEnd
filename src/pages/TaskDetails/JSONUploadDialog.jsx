@@ -7,21 +7,26 @@ import DialogContent from '@mui/material/DialogContent';
 import DialogContentText from '@mui/material/DialogContentText';
 import DialogTitle from '@mui/material/DialogTitle';
 import { CircularProgress, Input, Typography } from '@mui/material';
-import { useState } from 'react';
+import { useState, useContext } from 'react';
 import IconButton from '@mui/material/IconButton';
 import CloseIcon from '@mui/icons-material/Close';
+import { VideoContext } from '../../contexts/VideoContext';
+
+const API_URL = import.meta.env.VITE_API_BASE_URL;
 
 export default function JSONUploadDialog({
   dialogOpen,
   setDialogOpen,
   handleJSONUpload,
-  boundingBoxes,
-  videoRef,
-  fps,
-  tasks,
-  taskBoxes,
   selectedTask,
 }) {
+  const {
+    videoId,
+    videoRef,
+    fps,
+    tasks,
+    taskBoxes,
+  } = useContext(VideoContext);
 
   const [fileError, setFileError] = useState('');
   const [jsonContent, setJSONContent] = useState(null);
@@ -65,7 +70,6 @@ export default function JSONUploadDialog({
 
     try {
       let uploadData = new FormData();
-      uploadData.append('video', content);
       let taskData = tasks[selectedTask];
 
       const chosenTaskBox = taskBoxes.find(box => box.id === taskData.id);
@@ -96,7 +100,7 @@ export default function JSONUploadDialog({
         .join('_');
 
       // Build the API URL with the sanitized task name.
-      let apiURL = `http://localhost:8000/api/${sanitizedTaskName}/`;
+      let apiURL = `${API_URL}/${sanitizedTaskName}/?id=${videoId}`;
 
       console.log("API URL Generated as:", apiURL);
       console.log("Upload data", JSON.parse(jsonData));

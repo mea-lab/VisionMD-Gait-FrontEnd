@@ -1,3 +1,4 @@
+//src/pages/TaskDetails/index.jsx
 import React, {
   useContext,
   useEffect,
@@ -199,7 +200,7 @@ const TaskDetails = () => {
 
   /* Tailwind button base */
   const btn =
-    'bg-blue-500 hover:bg-blue-600 text-white font-bold px-3 py-1 ' +
+    'bg-[#1976d2] hover:bg-[#1565c0] text-white font-medium px-3 py-1 ' +
     'rounded-md inline-flex items-center gap-1 ' +
     'disabled:opacity-50 disabled:cursor-not-allowed';
 
@@ -266,7 +267,7 @@ const TaskDetails = () => {
             <div className="relative inline-flex" ref={dropdownRef}>
               {/* main download */}
               <button
-                className={`${btn} rounded-r-none border-r border-blue-700`}
+                className={`${btn} rounded-r-none border-r border-blue-800`}
                 onClick={DownloadCurrentTask}
                 disabled={!tasks[selectedTask]?.data}
               >

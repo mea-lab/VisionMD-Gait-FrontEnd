@@ -115,7 +115,7 @@ useEffect(() => {
           <div className="h-[1px] bg-gray-200 w-full" />
         </div>
 
-        <div className="flex flex-row items-center flex-wrap justify-between px-3 py-2 bg-white gap-y-4 rounded-b-lg">
+        <div className="flex flex-row items-start flex-wrap justify-between px-6 py-1 bg-white gap-y-4 rounded-b-lg">
           
           {/* Task selector */}
           <div className="relative whitespace-nowrap">

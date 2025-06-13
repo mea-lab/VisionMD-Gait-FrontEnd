@@ -243,6 +243,7 @@ const VideoPlayer = ({
                 boundingBoxes={boundingBoxes}
                 fps={fps}
                 persons={persons}
+                tasks={tasks}
                 taskBoxes={taskBoxes}
                 landMarks={tasks[selectedTask]?.data?.landMarks}
                 selectedTask={selectedTask}
